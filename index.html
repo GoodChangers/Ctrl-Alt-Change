@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>改變主控台 Good Changers Terminal</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mononoki/1.6.0/mononoki.min.css">
+
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #00ff41; /* 終端機經典綠 */
+            --highlight-color: #ffffff;
+            --dim-color: #008F11;
+            /* 字體修改：優先使用 mononoki，若無則使用其他等寬字體 */
+            --font-main: 'mononoki', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 掃描線效果 */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        #container {
+            width: 100%;
+            max-width: 900px;
+            z-index: 3;
+            position: relative;
+            padding-bottom: 100px;
+        }
+
+        h1 {
+            text-align: center;
+            border-bottom: 2px solid var(--text-color);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+            color: var(--highlight-color);
+            font-weight: normal; /* 英文部分預設正常 */
+        }
+
+        /* 標題中文加粗 */
+        .zh-title {
+            font-weight: 900;
+            margin-right: 10px;
+        }
+
+        /* 第一階段：選擇介面 */
+        .selection-panel {
+            border: 1px solid var(--dim-color);
+            padding: 30px;
+            background: rgba(0, 20, 0, 0.9);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        select {
+            width: 100%;
+            padding: 15px;
+            background-color: #000;
+            color: var(--text-color);
+            border: 2px solid var(--text-color);
+            font-family: var(--font-main);
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2300ff41%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 15px top 50%;
+            background-size: 12px auto;
+        }
+
+        select:focus {
+            outline: none;
+            box-shadow: 0 0 10px var(--dim-color);
+        }
+
+        .btn-execute {
+            width: 100%;
+            padding: 20px;
+            background-color: var(--text-color);
+            color: #000;
+            font-family: var(--font-main);
+            font-size: 1.5rem;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 6px #005f00;
+            top: 0;
+            transition: all 0.1s;
+            text-transform: uppercase;
+        }
+
+        .btn-execute:hover {
+            background-color: #5aff85;
+        }
+
+        .btn-execute:active {
+            top: 6px;
+            box-shadow: 0 0 #005f00;
+        }
+
+        /* 第二階段：載入與結果 */
+        #console-output {
+            display: none;
+            width: 100%;
+            font-size: 1rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            padding-bottom: 50px;
+        }
+
+        .log-line {
+            margin: 2px 0; /* 減少行距讓速度感更快 */
+            opacity: 0.9;
+            word-break: break-all;
+        }
+
+        .highlight {
+            color: var(--highlight-color);
+            font-weight: bold;
+        }
+
+        .loading-bar {
+            color: var(--highlight-color);
+        }
+
+        /* ASCII Art 區塊 */
+        .ascii-art {
+            font-size: 16px; /* 100% 大小，不縮小 */
+            line-height: 16px;
+            white-space: pre; /* 保留空白格式 */
+            color: var(--highlight-color);
+            margin: 30px 0;
+            font-weight: bold;
+            overflow-x: auto; /* 若圖太大可橫向滑動 */
+            text-align: center;
+            width: 100%;
+        }
+        
+        .vision-text {
+            border-top: 2px dashed var(--dim-color);
+            margin-top: 20px;
+            padding-top: 20px;
+            font-size: 1.1rem;
+            color: #fff;
+            line-height: 1.8;
+        }
+
+        .cursor::after {
+            content: '▋';
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <h1><span class="zh-title">改變主控台</span>Good Changers Terminal</h1>
+
+        <div id="selection-panel" class="selection-panel">
+            <label for="policy-select">>> INPUT COMMAND: SELECT_POLICY_MODULE</label>
+            <select id="policy-select">
+                <option value="" disabled selected>請選擇要執行的政策 Please select a policy</option>
+                
+                <optgroup label="[ 類別一：氣候行動與環境保護 ]">
+                    <option value="1">1. 全民氣候行動日</option>
+                    <option value="2">2. 菸蒂不落地</option>
+                    <option value="3">3. 綠色通勤</option>
+                    <option value="4">4. 綠蔭公園</option>
+                    <option value="5">5. 減塑日行動</option>
+                    <option value="6">6. 菸品減害設計</option>
+                </optgroup>
+                
+                <optgroup label="[ 類別二：數位安全與健康使用 ]">
+                    <option value="7">7. 健康3C設計</option>
+                    <option value="8">8. 3C使用教育</option>
+                    <option value="9">9. 校園無3C日</option>
+                    <option value="10">10. 數位性剝削零容忍</option>
+                    <option value="11">11. 媒體共同守護</option>
+                </optgroup>
+                
+                <optgroup label="[ 類別三：兒少表意參與 ]">
+                    <option value="12">12. 全校學生會議制度化</option>
+                </optgroup>
+            </select>
+
+            <button class="btn-execute" onclick="startExecution()">[ 執行 EXECUTE ]</button>
+        </div>
+
+        <div id="console-output"></div>
+    </div>
+
+    <script>
+        const policies = {
+            "1": {
+                title: "全民氣候行動日",
+                content: "制定應對氣候變遷的法律，並定期舉辦全民氣候行動活動，讓大人與兒少都能一起參與。",
+                vision: "每一個人都能理解氣候變遷與自己的關係，從日常生活開始採取行動，讓全國共同參與成為一種文化，而不是一次活動，人人都有改變地球的力量。",
+                ascii: `
+        /\\        /\\        /\\  
+       /  \\      /  \\      /  \\ 
+      /    \\    /    \\    /    \\
+ /\\  /      \\  /      \\  /      \\  /\\
+/  \\/  /\\    \\/  /\\    \\/  /\\    \\/  \\
+/    \\ /  \\    /  \\    /  \\ /    \\    \\
+/      /    \\  /    \\  /    \\      \\    \\
+-------------------------------------------
+
+         .-"-.                   .-"-. 
+        ( •‿• )                 ( •ᴗ• )
+         -----                   -----
+
+     o/ |     |                 |     | \\o
+       /|_____|                 |_____|\\
+
+      /   |   \\                 /   |   \\
+     /    |    \\               /    |    \\
+    /_____|_____\\             /_____|_____\\
+        /     \\                 /     \\
+       /       \\               /       \\
+`
+            },
+            "2": {
+                title: "菸蒂不落地",
+                content: "推動菸蒂減量與收集設施，結合教育宣導，讓環境更乾淨、空氣更清新。",
+                vision: "街道和公園不再有隨地丟棄的菸蒂，空氣更清新、環境更乾淨，兒少在城市中看見的是尊重環境的行為，而不是破壞的痕跡。",
+                ascii: `
+     NO SMOKING AREA / CLEAN CITY
+    ==============================
+
+          ( )
+           \\
+          | |
+        __| |__   <-- BIN
+       |       |
+       |  ___  |      .-"-.
+       | | X | |     ( ^_^ )  <-- HAPPY KID
+       | |___| |      -----
+       |_______|       | | 
+         |   |         | |
+        /_____\\       /___\\
+      Environment     /   \\
+       Protected     /     \\
+`
+            },
+            "3": {
+                title: "綠色通勤",
+                content: "加強公共運輸使用與獎勵措施，減少私人交通工具，降低碳排放。",
+                vision: "搭乘大眾交通成為多數人的習慣，兒少能安全走路或騎腳踏車，城市的空氣污染減少、碳排下降，通勤不再是造成氣候危機的來源，而是一種綠色生活方式。",
+                ascii: `
+       ______________________
+      |  BUS  |  ECO  |      |
+    __|_______|_______|______|_
+   /  o     o     o     o     o \\
+  /______________________________\\
+     (O)                    (O)
+
+            __o      .-"-.
+           _ \\<,_   ( •o• )
+          (_)/ (_)   -----
+                     / | \\
+                    /  |  \\
+`
+            },
+            "4": {
+                title: "綠蔭公園",
+                content: "每個城市都應有更多安全、綠意的公園，讓兒少能自在呼吸與遊戲。",
+                vision: "每座城市都有充足的公園與涼爽綠蔭，兒少能安全奔跑、爬樹、遊戲，公園不只是休憩空間，也是讓兒少學習自然、社交與創造力的自然教室。",
+                ascii: `
+          &&& &&  & &&
+      && &\\/&\\|& ()|/ @, &&
+      &\\/(/&/&||/& /_/)_&/_&
+   &() &\\/&|()|/&\\/ '%" & ()
+  &_\\_&&_\\ |& |&&/&__%_/_& &&
+&&   && & &| &| /& & % ()& /&&
+ ()&_---()&\\&\\|&&-&&--%---()~
+     &&     \\|||
+             |||             |------|
+             |||             |      |
+             |||        o   /      /
+       , -=-~  .-^- _   |\\ /      /
+                   \`    |/|      /
+                        / \\     /
+`
+            },
+            "5": {
+                title: "減塑日行動",
+                content: "每月一次「減塑日」，從社區與校園開始，減少一次性塑膠製品使用。",
+                vision: "社區、學校和家庭習慣用環保方式生活，不買、多次使用、減少塑膠成為常態，人們自然而然地選擇對地球友善的方式，海洋和都市不再堆滿塑膠。",
+                ascii: `
+   PLASTIC FREE ZONE
+   =================
+
+     [XXXXX]        .-"-.
+     [ BOTT]       ( >‿< ) YES!
+     [ LE  ]        -----
+     [__X__]         /|\\
+                     /|\\
+      /   \\         / | \\
+     | BAG | X     /  |  \\
+      \\___/       /   |   \\
+
+  REDUCE REUSE RECYCLE
+`
+            },
+            "6": {
+                title: "菸品減害設計",
+                content: "要求菸品製造商改用可分解濾嘴，減少環境污染與下水道堵塞。",
+                vision: "製造者對環境負責，從產品設計開始減少污染；城市的下水道不再因菸蒂堵塞，海邊沙灘不再佈滿菸濾嘴，環境保護不只是使用者的責任，而是一整個產業的轉變。",
+                ascii: `
+         , , , , ,
+        , , , , , ,
+       _|||||||||||_   <-- NATURE RESTORED
+      |             |
+      |             |     .-"-.
+      |             |    ( 'o' )
+      |             |     -----
+       \\___________/       | |
+          |     |         /___\\
+     CIG  |     |         /   \\
+    FILTER|     |        /     \\
+   (ECO-FRIENDLY)
+`
+            },
+            "7": {
+                title: "健康3C設計",
+                content: "政府應規範3C產品，在長時間使用後提醒休息，保護眼睛與健康。",
+                vision: "科技產品保護使用者的健康，不是讓人沉迷；兒少使用3C時會被提醒休息、保護眼睛，數位生活變得安全、健康、有節制。",
+                ascii: `
+    ________________
+   |                |
+   | [!] REST TIME  |
+   |                |      .-"-.
+   |    ( O  O )    |     ( -_- ) Zzz..
+   |       ^        |      -----
+   |________________|       /|\\
+          [o]              / | \\
+
+    SMART HEALTH ALERT
+`
+            },
+            "8": {
+                title: "3C使用教育",
+                content: "定期進行「健康使用3C」宣導，提供教材與活動，幫助家長與兒少理解過度使用的危害。",
+                vision: "所有兒少都能懂得安全使用3C工具，學校與家庭一起教導正確態度，讓科技幫助兒少學習，而不是傷害健康或偷走生活時間。",
+                ascii: `
+      /\\
+     /  \\    SCHOOL / EDUCATION
+    /____\\   ==================
+    | [] |
+    | [] |     [PHONE]   .-"-.
+    | [] |      [?]     ( ?_? ) LEARNING
+    |____|              -------
+                         / | \\
+                        /  |  \\
+`
+            },
+            "9": {
+                title: "校園無3C日",
+                content: "每學期至少舉辦一次「校園無3C日」，鼓勵學生多參與戶外活動、降低近視率。",
+                vision: "校園裡有更多面對面的交流、戶外活動與創作時間，兒少能離開螢幕、看見真實世界，近視率下降、遊戲和探索回到校園日常。",
+                ascii: `
+      PLAYGROUND - NO SCREEN DAY
+     ============================
+
+       \\O/            \\O/
+        |              |
+       / \\      O     / \\
+               /|\\
+                |
+
+    REAL INTERACTION, REAL FUN.
+`
+            },
+            "10": {
+                title: "數位性剝削零容忍",
+                content: "完善防治兒少數位性剝削的法律，並建立兒少專屬的安全通報與支持系統。",
+                vision: "網路對兒少而言是一個安全空間，不會有傷害、剝削與威脅；當兒少遇到問題時，有快速可靠的通報與支持，社會以零容忍的態度保護所有兒少。",
+                ascii: `
+    ____________________
+   |   SECURE SHIELD    |
+   |        ___         |
+   |       /   \\        |     .-"-.
+   |      |  V  |       |    ( ^_^ ) SAFE
+   |       \\___/        |     -----
+   |____________________|      | |
+    [__________________]      /___\\
+
+    ZERO TOLERANCE POLICY
+`
+            },
+            "11": {
+                title: "媒體共同守護",
+                content: "政府與媒體應加強宣導數位性剝削的危害，提升社會大眾防範意識。",
+                vision: "大眾媒體積極揭露與防範數位性剝削，社會理解這些行為的傷害，不再忽視受害者；每一個人都知道要站在兒少這邊，保護他們的權利與安全。",
+                ascii: `
+     ____________________
+    /                   /|
+   /___BREAKING NEWS___/ |
+  |                   |  |
+  |  [ MEDIA GUARD ]  |  |    .-"-.
+  |                   |  |   ( •_• )
+  |  PROTECT KIDS!    |  |    -----
+  |___________________| /      | |
+  [___________________]/      /___\\
+
+   AWARENESS RISING...
+`
+            },
+            "12": {
+                title: "全校學生會議制度化",
+                content: "每學年至少舉辦一次全校學生會議，讓學生能發表對校園生活與政策的意見。",
+                vision: "兒少的聲音被制度聽見，而不是偶爾發聲，學生能對校園政策提出意見與想法，校園因學生的參與而更公平、更友善，兒少知道自己有能力改變自己生活的環境。",
+                ascii: `
+          \\ /
+         --O--  VOICE HEARD
+          / \\
+        /
+       /|   ___________
+      ( )=c/  OPINION  \\
+      |/   \\___________/
+     /|\\
+    / | \\      .-"-.
+   /  |  \\    ( >o< ) SPEAK UP!
+              -------
+                / \\
+`
+            }
+        };
+
+        const consoleOutput = document.getElementById('console-output');
+        const selectionPanel = document.getElementById('selection-panel');
+
+        function startExecution() {
+            const select = document.getElementById('policy-select');
+            const selectedId = select.value;
+
+            if (!selectedId) {
+                alert("> SYSTEM ALERT: 請先選擇要執行的政策 (MODULE REQUIRED)");
+                return;
+            }
+
+            const policy = policies[selectedId];
+
+            // 隱藏選擇面板，顯示終端機
+            selectionPanel.classList.add('hidden');
+            consoleOutput.style.display = 'block';
+
+            // 開始執行序列
+            runLoadingSequence(policy, selectedId);
+        }
+
+        async function runLoadingSequence(policy, selectedId) {
+            // 步驟 1: 系統啟動文字 (加速：每個字5ms)
+            await typeLine("booting gov.decision.module ...", 5);
+            await typeLine(`loading child_policy_proposal_${policy.title}.exe ...`, 5);
+            await typeLine("user-role detected: DECISION-MAKER", 5);
+            await typeLine("----------------------------------------", 2);
+            await typeLine(">>> PROCESSING CHILD POLICY PROPOSAL...", 5);
+            await typeLine("----------------------------------------", 2);
+
+            // 步驟 2: 進度條 (加速：間隔200-400ms)
+            await showLoadingBar("[35%] ███████▒▒▒▒▒▒▒▒▒▒▒▒▒ 35% 準備傾聽兒少意見...", 200);
+            await showLoadingBar("[50%] ███████████▒▒▒▒▒▒▒▒ 50% 專家資料整合中...", 300);
+            await showLoadingBar("[75%] ███████████████▒▒▒ 75% 彙整跨部會建議...", 300);
+            await showLoadingBar("[100%] ██████████████████ 100% 完成！", 150);
+
+            await typeLine("----------------------------------------", 2);
+            await typeLine(">>> DECISION PACKAGE GENERATED", 5);
+            await typeLine("----------------------------------------", 2);
+            
+            // 步驟 3: 產生程式碼指令
+            const moduleName = `policy_${policy.title.replace(/\s+/g, '_')}`;
+            appendHtmlLine(`<span class="highlight">gov.execute(module="${moduleName}", selected_policy="${selectedId}", priority=1);</span>`);
+            
+            await typeLine("initiating social_change_visualization.render()...", 5);
+            
+            // 模擬運算停頓 (極速)
+            await new Promise(r => setTimeout(r, 400));
+            
+            // 步驟 4: 顯示結果
+            consoleOutput.innerHTML += "<br><br><br>";
+            
+            await typeLine(`>> POLICY_CONTENT_LOADED:`, 5);
+            await typeLine(`"${policy.content}"`, 10); // 內容稍微慢一點點讓人看清，但也很快
+            await typeLine(`<br>>> EXECUTING CHANGES...`, 5);
+            
+            // 顯示 ASCII 圖 (100% 大小)
+            const asciiDiv = document.createElement('div');
+            asciiDiv.className = 'ascii-art';
+            asciiDiv.innerText = policy.ascii;
+            asciiDiv.style.opacity = 0;
+            consoleOutput.appendChild(asciiDiv);
+            window.scrollTo(0, document.body.scrollHeight);
+            
+            // 極速淡入
+            let op = 0;
+            const timer = setInterval(function () {
+                if (op >= 1){
+                    clearInterval(timer);
+                }
+                asciiDiv.style.opacity = op;
+                // asciiDiv.style.filter = `blur(${5 - op*5}px)`; // 移除模糊運算以加快渲染感
+                op += 0.2; // 加快淡入速度
+            }, 30);
+
+            await new Promise(r => setTimeout(r, 600));
+
+            // 步驟 5: 願景文字
+            const visionDiv = document.createElement('div');
+            visionDiv.className = 'vision-text';
+            consoleOutput.appendChild(visionDiv);
+            
+            await typeLineToElement(visionDiv, ">> VISION_OUTPUT 願景:", 5);
+            await typeLineToElement(visionDiv, policy.vision, 10); // 願景文字保留一點閱讀節奏，但比之前快
+
+            // 結尾
+            const endDiv = document.createElement('div');
+            endDiv.innerHTML = "<br><br>>>模擬程式已完成，謝謝你為世界帶來美好改變<br>>>SIMULATION COMPLETE. THANK YOU FOR MAKING A GOOD CHANGE.<br><a href='javascript:location.reload()' style='color:#0f0; text-decoration:none; border:1px solid #0f0; padding:5px 10px; display:inline-block; margin-top:10px;'>[重啟主控台 RESTART TERMINAL ]</a>";
+            consoleOutput.appendChild(endDiv);
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        // 輔助函式：打字機效果
+        function typeLine(text, speed) {
+            return new Promise(resolve => {
+                const line = document.createElement('div');
+                line.className = 'log-line cursor';
+                consoleOutput.appendChild(line);
+                window.scrollTo(0, document.body.scrollHeight);
+
+                let i = 0;
+                if(text.includes('<') && !text.includes('span')) {
+                     line.innerHTML = text;
+                     line.classList.remove('cursor');
+                     setTimeout(resolve, speed * 2);
+                } else {
+                    function type() {
+                        if (i < text.length) {
+                            line.textContent += text.charAt(i);
+                            i++;
+                            window.scrollTo(0, document.body.scrollHeight);
+                            setTimeout(type, speed);
+                        } else {
+                            line.classList.remove('cursor');
+                            resolve();
+                        }
+                    }
+                    type();
+                }
+            });
+        }
+
+        function appendHtmlLine(html) {
+            const line = document.createElement('div');
+            line.className = 'log-line';
+            line.innerHTML = html;
+            consoleOutput.appendChild(line);
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        function typeLineToElement(element, text, speed) {
+            return new Promise(resolve => {
+                const p = document.createElement('p');
+                p.className = 'cursor';
+                element.appendChild(p);
+                
+                let i = 0;
+                function type() {
+                    if (i < text.length) {
+                        p.textContent += text.charAt(i);
+                        i++;
+                        window.scrollTo(0, document.body.scrollHeight);
+                        setTimeout(type, speed);
+                    } else {
+                        p.classList.remove('cursor');
+                        resolve();
+                    }
+                }
+                type();
+            });
+        }
+
+        function showLoadingBar(text, delay) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const line = document.createElement('div');
+                    line.className = 'log-line loading-bar';
+                    line.textContent = text;
+                    consoleOutput.appendChild(line);
+                    window.scrollTo(0, document.body.scrollHeight);
+                    resolve();
+                }, delay);
+            });
+        }
+    </script>
+</body>
+</html>
