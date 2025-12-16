@@ -183,15 +183,16 @@
 
         /* ASCII Art 區塊 */
         .ascii-art {
-            font-size: 16px; /* 100% 大小，不縮小 */
-            line-height: 16px;
-            white-space: pre; /* 保留空白格式 */
+            font-family: "Courier New", Courier, monospace; /* ★關鍵 */
+            font-size: 16px;
+            line-height: 1.2;            /* ★不要用 px */
+            white-space: pre;
             color: var(--highlight-color);
             margin: 30px 0;
             font-weight: bold;
-            overflow-x: auto; /* 若圖太大可橫向滑動 */
-            text-align: center;
-            width: 100%;
+     
+            overflow-x: auto;
+            text-align: left;            /* ★ASCII 一定要 left */
         }
         
         .vision-text {
@@ -460,15 +461,15 @@
                 content: "政府與媒體應加強宣導數位性剝削的危害，提升社會大眾防範意識。",
                 vision: "大眾媒體積極揭露與防範數位性剝削，社會理解這些行為的傷害，不再忽視受害者；每一個人都知道要站在兒少這邊，保護他們的權利與安全。Media and society actively prevent digital exploitation and stand with victims. Protecting children’s rights and safety is a shared responsibility.",
                 ascii: `
-  ____________________
- /                   /|
-/___BREAKING NEWS___/ |
-|                   | |
+             ____________________
+           /                   /|
+          /___BREAKING NEWS___/ |
+          |                   | |
           | [ MEDIA GUARD ]   | |     .-"-.
-           |  PROTECT KIDS!    | |    ( •_• )
+          |  PROTECT KIDS!    | |    ( •_• )
           |                   | |     -----
-          |___________________|/        | |
-           [___________________]/      /___\\
+          |___________________|/       | |
+          [___________________]/      /___\\
 
    AWARENESS RISING...
 `
