@@ -2,7 +2,6 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-LPRXCHP7CH"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -157,13 +156,29 @@
             word-break: break-all;
         }
 
-        .highlight {
+        /* 進度條容器：讓 log 訊息和 bar 可以分開 */
+        #loading-sequence-container {
+            margin: 10px 0;
+            padding: 10px 0;
+        }
+        
+        /* 進度條本身 */
+        #loading-bar-line {
             color: var(--highlight-color);
+            white-space: pre; /* 確保 ASCII 進度條格式不變 */
+            margin-bottom: 10px; /* 與下方 log 隔開 */
             font-weight: bold;
         }
 
-        .loading-bar {
+        /* 進度條下方的 log 區域 */
+        #loading-log-area {
+            color: var(--text-color);
+            margin-left: 10px;
+        }
+
+        .highlight {
             color: var(--highlight-color);
+            font-weight: bold;
         }
 
         /* ASCII Art 區塊 */
@@ -391,7 +406,7 @@
 `
             },
             "8": {
-                title: "3C使用教育  Healthy Tech Use Education",
+                title: "3C使用教育 Healthy Tech Use Education",
                 content: "定期進行「健康使用3C」宣導，提供教材與活動，幫助家長與兒少理解過度使用的危害。",
                 vision: "所有兒少都能懂得安全使用3C工具，學校與家庭一起教導正確態度，讓科技幫助兒少學習，而不是傷害健康或偷走生活時間。Children learn to use digital tools safely, guided by schools and families. Technology enhances learning without harming health or replacing real life.",
                 ascii: `
@@ -431,11 +446,11 @@
     ____________________
    |   SECURE SHIELD    |
    |        ___         |
-   |       /   \\        |     .-"-.
-   |      |  V  |       |    ( ^_^ ) SAFE
-   |       \\___/        |     -----
-   |____________________|      | |
-    [__________________]      /___\\
+        |       /   \\        |     .-"-.
+          |      |  V  |       |    ( ^_^ ) SAFE
+        |       \\___/        |     -----
+       |____________________|      | |
+          [__________________]      /___\\
 
     ZERO TOLERANCE POLICY
 `
@@ -445,15 +460,15 @@
                 content: "政府與媒體應加強宣導數位性剝削的危害，提升社會大眾防範意識。",
                 vision: "大眾媒體積極揭露與防範數位性剝削，社會理解這些行為的傷害，不再忽視受害者；每一個人都知道要站在兒少這邊，保護他們的權利與安全。Media and society actively prevent digital exploitation and stand with victims. Protecting children’s rights and safety is a shared responsibility.",
                 ascii: `
-     ____________________
-    /                   /|
-   /___BREAKING NEWS___/ |
-  |                   |  |
-  |  [ MEDIA GUARD ]  |  |    .-"-.
-  |                   |  |   ( •_• )
-  |  PROTECT KIDS!    |  |    -----
-  |___________________| /      | |
-  [___________________]/      /___\\
+  ____________________
+ /                   /|
+/___BREAKING NEWS___/ |
+|                   | |
+          | [ MEDIA GUARD ]   | |     .-"-.
+           |  PROTECT KIDS!    | |    ( •_• )
+          |                   | |     -----
+          |___________________|/        | |
+           [___________________]/      /___\\
 
    AWARENESS RISING...
 `
@@ -463,24 +478,32 @@
                 content: "每學年至少舉辦一次全校學生會議，讓學生能發表對校園生活與政策的意見。",
                 vision: "兒少的聲音被制度聽見，而不是偶爾發聲，學生能對校園政策提出意見與想法，校園因學生的參與而更公平、更友善，兒少知道自己有能力改變自己生活的環境。Children’s voices are heard through meaningful participation. Students help shape fair and welcoming schools and know they have the power to improve their own lives.",
                 ascii: `
-          \\ /
-         --O--  VOICE HEARD
-          / \\
-        /
-       /|   ___________
-      ( )=c/  OPINION  \\
-      |/   \\___________/
-     /|\\
-    / | \\      .-"-.
-   /  |  \\    ( >o< ) SPEAK UP!
-              -------
-                / \\
+        //=============//
+        //   SPEAKER   //  
+     //=============//
+          
+              O        
+             /|\\       
+       _____/ \\_____
+        /_______________\\ 
+      
+       | OPINION BOX |
+      
+    |-------------| |-------------|
+    |  [ VOTE ]   | | [ VOICE ]   |
+    |-------------| |-------------|
+    
+    ==================================
+        O     O     O     O     O
+       /|\\   /|\\   /|\\   /|\\   /|\\
+       / \\   / \\   / \\   / \\   / \\ 
 `
             }
         };
 
         const consoleOutput = document.getElementById('console-output');
         const selectionPanel = document.getElementById('selection-panel');
+        let loadingBarLine; // 宣告為全域變數，以便在不同函式中操作
 
         function startExecution() {
             const select = document.getElementById('policy-select');
@@ -504,17 +527,33 @@
         async function runLoadingSequence(policy, selectedId) {
             // 步驟 1: 系統啟動文字 (加速：每個字5ms)
             await typeLine("booting gov.decision.module ...", 5);
-            await typeLine(`loading child_policy_proposal_${policy.title}.exe ...`, 5);
+            await typeLine(`loading child_policy_proposal_${policy.title.replace(/[\s\(\)]/g, '_')}.exe ...`, 5);
             await typeLine("user-role detected: DECISION-MAKER", 5);
             await typeLine("----------------------------------------", 2);
             await typeLine(">>> PROCESSING CHILD POLICY PROPOSAL...", 5);
             await typeLine("----------------------------------------", 2);
+            
+            // 準備進度條容器 (只建立一次)
+            const loadingContainer = document.createElement('div');
+            loadingContainer.id = 'loading-sequence-container';
+            
+            loadingBarLine = document.createElement('div'); // 賦值給全域變數
+            loadingBarLine.id = 'loading-bar-line';
+            loadingBarLine.textContent = '[0%] ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒ 0%';
+            loadingContainer.appendChild(loadingBarLine);
 
-            // 步驟 2: 進度條 (加速：間隔200-400ms)
-            await showLoadingBar("[35%] ███████▒▒▒▒▒▒▒▒▒▒▒▒▒ 35% 準備傾聽兒少意見 Preparing to listen to children's voices...", 200);
-            await showLoadingBar("[50%] ███████████▒▒▒▒▒▒▒▒ 50% 專家資料整合中 Integrating expert opinions...", 300);
-            await showLoadingBar("[75%] ███████████████▒▒▒ 75% 彙整跨部會建議 Compiling Cross-sector recommendations ...", 300);
-            await showLoadingBar("[100%] ██████████████████ 100% 完成 Complete！", 150);
+            const loadingLogArea = document.createElement('div');
+            loadingLogArea.id = 'loading-log-area';
+            loadingContainer.appendChild(loadingLogArea);
+
+            consoleOutput.appendChild(loadingContainer);
+
+            // 步驟 2: 進度條單行更新與 Log 新增
+            await updateLoadingBar(35, "準備傾聽兒少意見 Preparing to listen to children's voices...", 350);
+            await updateLoadingBar(50, "專家資料整合中 Integrating expert opinions...", 300);
+            await updateLoadingBar(75, "彙整跨部會建議 Compiling Cross-sector recommendations ...", 300);
+            await updateLoadingBar(100, "完成 Complete！", 150);
+
 
             await typeLine("----------------------------------------", 2);
             await typeLine(">>> DECISION PACKAGE GENERATED", 5);
@@ -551,7 +590,6 @@
                     clearInterval(timer);
                 }
                 asciiDiv.style.opacity = op;
-                // asciiDiv.style.filter = `blur(${5 - op*5}px)`; // 移除模糊運算以加快渲染感
                 op += 0.2; // 加快淡入速度
             }, 30);
 
@@ -571,8 +609,47 @@
             consoleOutput.appendChild(endDiv);
             window.scrollTo(0, document.body.scrollHeight);
         }
+        
+        // 進度條字元長度 (20 個字元)
+        const BAR_LENGTH = 20;
 
-        // 輔助函式：打字機效果
+        // 新增函式：更新同一行進度條並增加 Log
+        function updateLoadingBar(targetPercent, logMessage, delay) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const filledBlocks = Math.floor(targetPercent / (100 / BAR_LENGTH));
+                    const emptyBlocks = BAR_LENGTH - filledBlocks;
+
+                    // 使用 '█' 來代表已填滿，'▒' 來代表未填滿
+                    const barContent = '█'.repeat(filledBlocks) + '▒'.repeat(emptyBlocks);
+                    
+                    // 更新 loading bar 的內容
+                    if (loadingBarLine) {
+                         loadingBarLine.textContent = `[${targetPercent}%] ${barContent} ${targetPercent}%`;
+                    }
+                    
+                    // 在 loading log area 新增 Log 訊息
+                    appendLoadingLog(logMessage);
+                    
+                    window.scrollTo(0, document.body.scrollHeight);
+                    resolve();
+                }, delay);
+            });
+        }
+        
+        // 新增函式：在 loading log area 新增 Log 訊息
+        function appendLoadingLog(text) {
+            const loadingLogArea = document.getElementById('loading-log-area');
+            if (loadingLogArea) {
+                 const logEntry = document.createElement('div');
+                 logEntry.className = 'log-line';
+                 logEntry.textContent = `> ${text}`;
+                 loadingLogArea.appendChild(logEntry);
+            }
+        }
+
+
+        // 輔助函式：打字機效果 (維持不變)
         function typeLine(text, speed) {
             return new Promise(resolve => {
                 const line = document.createElement('div');
@@ -631,31 +708,6 @@
                 type();
             });
         }
-
-        function showLoadingBar(text, delay) {
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    const line = document.createElement('div');
-                    line.className = 'log-line loading-bar';
-                    line.textContent = text;
-                    consoleOutput.appendChild(line);
-                    window.scrollTo(0, document.body.scrollHeight);
-                    resolve();
-                }, delay);
-            });
-        }
     </script>
 </body>
-
 </html>
-
-
-
-
-
-
-
-
-
-
-
